@@ -1,0 +1,7 @@
+__pycache__/
+*.db
+*.xlsx
+stress/
+stress2/
+node_modules/
+package*.json

@@ -1,8 +1,7 @@
 __pycache__/
 *.db
 *.xlsx
-stress/
-stress2/
+.pytest_cache/
 node_modules/
 package*.json
 .DS_Store

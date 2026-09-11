@@ -5,3 +5,4 @@ stress/
 stress2/
 node_modules/
 package*.json
+.DS_Store

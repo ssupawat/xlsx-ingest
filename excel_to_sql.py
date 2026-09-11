@@ -63,7 +63,7 @@ class CellError:
     def __str__(self) -> str:
         base = (f"[{self.sheet}!{self.coord}] column '{self.column}': "
                 f"expected {self.expected}, got {self.got}")
-        return f"{base} — {self.detail}" if self.detail else base
+        return f"{base}; {self.detail}" if self.detail else base
 
 
 class SourceFileError(ValueError):
@@ -87,7 +87,7 @@ class IngestionError(ValueError):
             where = f"{first} and {len(hits) - 3} more" if len(hits) > 3 else first
             got = hits[0].got if len(hits) == 1 else f"{len(hits)} cells"
             lines.append(f"  [{where}] column '{column}': expected {expected}, "
-                         f"got {got}" + (f" — {detail}" if detail else ""))
+                         f"got {got}" + (f"; {detail}" if detail else ""))
         more = (f"\n  ... and {len(groups) - shown} more problems"
                 if len(groups) > shown else "")
         super().__init__(
@@ -186,7 +186,7 @@ def _validate(value: Any, spec: ColumnSpec) -> tuple[Any, Optional[tuple[str, st
             # This is the only normalisation here, and only while it stays lossless.
             if abs(value) >= _EXACT_INT:
                 return None, ("INTEGER", _typename(value),
-                              "beyond Excel's exact integer range (2^53) — the file "
+                              "beyond Excel's exact integer range (2^53), the file "
                               "already lost digits; store this column as Text")
             return int(value), None
         if isinstance(value, float):
@@ -296,7 +296,7 @@ def _resolve_bind(target) -> tuple[Union[Engine, Connection], bool]:
     if isinstance(target, str) and "://" in target:
         return create_engine(target), True
     raise TypeError(
-        f"target must be an Engine, a Connection, or a SQLAlchemy URL — got {target!r}"
+        f"target must be an Engine, a Connection, or a SQLAlchemy URL; got {target!r}"
     )
 
 
@@ -309,7 +309,7 @@ def _require_xlsx(path: Path) -> None:
     """
     import xml.etree.ElementTree as ET
     if path.suffix.lower() != ".xlsx":
-        raise ValueError(f"{path.name}: only .xlsx is accepted — re-save the file.")
+        raise ValueError(f"{path.name}: only .xlsx is accepted; re-save the file.")
     if not zipfile.is_zipfile(path):
         raise ValueError(f"{path.name}: not a readable .xlsx (wrong contents for the extension).")
     with zipfile.ZipFile(path) as z:
@@ -332,8 +332,8 @@ def _require_xlsx(path: Path) -> None:
                 f"{path.name}: written by SheetJS with the number formats stripped. "
                 "Dates are bare serial numbers and percent/currency cells are bare "
                 "values, so nothing here can be checked against what was shown on "
-                "screen. Fix the generator — XLSX.read(buf, {cellDates: true}) and "
-                "XLSX.write(wb, {cellStyles: true}) — or pass the original upload "
+                "screen. Fix the generator (XLSX.read(buf, {cellDates: true}) and "
+                "XLSX.write(wb, {cellStyles: true})), or pass the original upload "
                 "through untouched."
             )
 
@@ -385,15 +385,15 @@ def _format_problem(code: str) -> Optional[str]:
     import re
     bare = re.sub(r"\[[^\]]*\]", "", code)          # colours, [$฿-41E], conditions
     if not bare.strip("; "):
-        return "hidden by the ';;;' format — the cell looks empty but holds a value"
+        return "hidden by the ';;;' format; the cell looks empty but holds a value"
     if "%" in bare:
-        return "percent format — the value stored is 100x smaller than the digits shown"
+        return "percent format; the value stored is 100x smaller than the digits shown"
     if re.search(r"[Ee][+-]", bare):
         return "scientific format"
     if "?" in bare and "/" in bare:
         return "fraction format"
     if "[$" in code or re.search(r'["\u00a4$€£¥฿]', code):
-        return "currency format — the symbol is not part of the stored number"
+        return "currency format; the symbol is not part of the stored number"
     if "(" in bare:
         return "negatives shown in parentheses"
     return None
@@ -535,7 +535,7 @@ def _suspect_cells(path: Path, sheet_name: str) -> dict[str, tuple[str, str]]:
             elif cell.find(m + "f") is not None and (
                     value is None or not (value.text or "").strip()):
                 out[coord] = ("a literal value",
-                              "formula with no cached result — open and save in Excel")
+                              "formula with no cached result; open and save in Excel")
             elif style and cell.get("t") in (None, "n"):
                 out[coord] = ("an unformatted cell", style + "; clear the number format in Excel")
             cell.clear()

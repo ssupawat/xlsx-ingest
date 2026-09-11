@@ -87,7 +87,7 @@ hide error cells, formulas and number formats from these checks.
  
 ```
 pip install -r requirements.txt -r requirements-dev.txt
-python -m pytest          # 39 tests: sheet shapes, style XML, containers, insert path
+python -m pytest          # 47 tests: sheet shapes, style XML, containers, targets, insert path
 python demo.py            # happy path + a deliberately broken sheet, printed
 ```
 

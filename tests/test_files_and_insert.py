@@ -121,6 +121,52 @@ def test_cached_formula_passes_but_error_cell_rejected(tmp_path, engine):
     assert "Excel error value #N/A" in str(e.value)
 
 
+def test_ref_error_cell_rejected(tmp_path, engine):
+    # Arrange: a #REF! error cell, same shape as #N/A
+    wb = Workbook()
+    ws = wb.active
+    ws.append(HEADER)
+    ws.append([1, "ACME", 1, None, None, None, None, None, "z"])
+    src = tmp_path / "ref_base.xlsx"
+    wb.save(src)
+    p = tmp_path / "ref_patched.xlsx"
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(p, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                x = data.decode()
+                x = x.replace('<c r="C2" t="n"><v>1</v></c>',
+                              '<c r="C2" t="e"><f>Sheet2!A1</f><v>#REF!</v></c>')
+                data = x.encode()
+            zout.writestr(item, data)
+
+    # Act
+    with pytest.raises(IngestionError) as e:
+        excel_to_sql(p, "orders", engine, dry_run=True)
+
+    # Assert
+    assert "[Sheet!C2]" in str(e.value)
+    assert "Excel error value #REF!" in str(e.value)
+
+
+def test_rejected_validation_writes_nothing(tmp_path, engine):
+    # Arrange: one bad cell anywhere in the sheet
+    wb = Workbook()
+    ws = wb.active
+    ws.append(HEADER)
+    ws.append([1, "ACME", "10", None, None, None, None, None, None])
+    p = tmp_path / "dirty.xlsx"
+    wb.save(p)
+
+    # Act
+    with pytest.raises(IngestionError):
+        excel_to_sql(p, "orders", engine)
+
+    # Assert
+    with engine.connect() as conn:
+        assert conn.execute(text("select count(*) from orders")).scalar() == 0
+
+
 def test_duplicate_pk_insert_rolls_back(engine, make_sheet):
     # Arrange
     p = make_sheet("duppk", [OK, OK])

@@ -169,3 +169,17 @@ def test_blank_in_not_null_column_rejected(make_sheet, engine):
     # Assert
     assert "[Sheet1!B2, Sheet1!B3]" in str(e.value)
     assert "column has no default" in str(e.value)
+
+
+def test_varchar_overflow_rejected(make_sheet, engine):
+    # Arrange: customer is VARCHAR(10), this is 16 characters
+    p = make_sheet("toolong", [[1, "ACME" * 4, 1, None, None, None, None, None, None]])
+
+    # Act
+    with pytest.raises(IngestionError) as e:
+        excel_to_sql(p, "orders", engine, dry_run=True)
+
+    # Assert
+    assert "expected VARCHAR(10)" in str(e.value)
+    assert "text of length 16" in str(e.value)
+    assert "value is too long" in str(e.value)

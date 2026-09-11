@@ -48,7 +48,28 @@ column collapse into one report.
  
 The loader rejects type mismatches against the target column, and anything
 where the file does not say what the screen shows:
- 
+
+```mermaid
+%% caption: The checks one cell passes through, in run order.
+flowchart TB
+    accTitle: The life of one cell
+    accDescr: Each cell passes a header match, a trap scan, and a type check before insert. Any failure lands in one IngestionError with A1 coordinates, and nothing is written.
+
+    HDR["header row text"] --> HM{"names a DB column?"}
+    HM -- "unknown or duplicate" --> RJ["reject, keep coordinate"]
+    HM -- "yes" --> TR{"trap? merged range, error cell, uncached formula, display format"}
+    TR -- "yes" --> RJ
+    TR -- "no" --> BL{"blank?"}
+    BL -- "yes, nullable or has default" --> NB["bind NULL"]
+    BL -- "yes, NOT NULL and no default" --> RJ
+    BL -- "no" --> TC{"fits column type and length?"}
+    TC -- "yes" --> NB
+    TC -- "no" --> RJ
+    NB --> AL["all rows validated"]
+    AL --> IN["batched INSERT in one transaction"]
+    RJ --> IE["IngestionError: every failure at once, nothing written"]
+```
+
 | | |
 |---|---|
 | `15%`, `฿1,234.50`, `1.2E+03`, `# ?/?`, `;;;` | the cell displays one thing and stores another |
